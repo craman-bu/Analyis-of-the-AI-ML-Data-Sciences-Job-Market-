@@ -1,0 +1,829 @@
+---
+title: "Analysis of AI ML Data Sciences Job Market And Salary Trends(USA)"
+author: "Chinmayee Raman"
+date: "`r format(Sys.time(), '%m/%d/%Y')`"
+output:
+  html_document:
+    fig_width: 8
+    code_folding: hide
+    theme: journal
+    highlight: tango
+    toc: true
+    toc_float:
+      collapsed: true
+editor_options: 
+  markdown: 
+    wrap: 80
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(fig.width=9, fig.height=6,
+              echo=FALSE, warning=FALSE, message=FALSE)
+library(plotly)
+library(tidyverse)
+library(rmarkdown)
+library(sampling)
+options(warn=-1)
+```
+
+# Dataset Details
+
+This data is compiled from anonymous salary surveys filled out by working
+professionals in the AI, ML, and data science fields, and published under the
+CC0 license. This covers data collected from the years 2020 to 2024. This file
+contains structured salary information across different roles including
+experience levels, job title, employment types, and geographical locations.
+
+As we can see from the pie chart, an overwhelming majority(88.9%) of the survey
+respondents are working for companies in the USA.Thus, the data set was filtered
+for the same and all analysis in this project is for companies located in the
+USA.
+
+```{r echo=TRUE}
+#read data from csv files into tibble for global_ml_ai_salaries
+# read data from excel into tibble for file country iso code
+################################################################
+
+              
+inpFile1 = "global_ai_ml_data_salaries.csv"
+globalSal = as_tibble(read.csv(inpFile1))
+plot_ly(labels = globalSal$company_location,type = "pie",width =500,
+        height = 400) %>%
+  layout(title = "Jobs by Country")
+#filter for company locations in the USA
+dsSal= filter(globalSal, company_location == "US")
+paged_table(dsSal)
+
+```
+
+## Column Details
+
+The column information relevant to our analysis is shown below:
+
+1.  work_year: The year the salary was paid
+2.  experience_level: The experience level in the job during the year
+    -   (EN: Entry-level/Junior, MI: Mid-level/Intermediate, SE: Senior-level/
+        Expert, EX: Executive-level/Director)
+3.  job_title: The role worked in during the year.
+4.  salary_in_usd: The salary in USD
+5.  remote_ratio: The overall amount of work done remotely
+    -   0: No remote work, 50: Partially remote/hybrid, 100: Fully remote
+6.  company_location: data filter for company_location = "US"
+7.  company_size: The average number of people that worked for the company
+    during the year
+    -   S: less than 50 employees, M: 50 to 250 employees, L: more than 250
+        employees
+
+# Objective
+
+Based on the data for the AI ML Data Science the objective of the project is the
+following:
+
+1.  Analyze the salary distribution in the AI ML Data Science Sector in the USA.
+2.  Prove applicability of the Central Limit Theorem
+3.  Analyze applicability of sampling methods to determine population parameters
+4.  What size companies are hiring more in this data science sector
+5.  What are the top 10 job titles in the industry by frequency
+6.  Analyze trends in salary distribution of top 10 job titles
+7.  What is the average salary by top 10 job titles, and experience level
+8.  What has been the average salary growth in this sector over the past 4 years
+    by top 10 job titles
+9.  What are the top 10 job titles with the highest average salaries
+10. How is the salary distributed by experience across the top 10 job titles
+    with highest average salaries
+11. Are salaries in this sector directly correlated to job experience
+12. What has been the trend in average salaries over the work years
+13. Analyze the remote work trends by year
+
+# Salary Distribution
+
+Shown below is the histogram and the box plot for the Salary distribution.
+
+```{r echo=TRUE}
+
+# Plotting histogram for Salary Data
+x <- dsSal$salary_in_usd
+m = median(x)
+mu = round(mean(x),2)
+sd = sd(x)
+
+heading = "ML AI Salary Distribution(US Companies)"
+#pTitle= list(text=heading, y = 0.98, x = 0.5, xanchor = 'center', yanchor =  'top')
+pTitle= list(text=heading)
+xTitle = list(title = "Salary in USD")
+yTitle = list(title = "Count")
+                
+plot_ly( x = ~x,type = "histogram",name = "Population Distribution")  %>%
+layout(title = pTitle,
+       xaxis = xTitle, 
+       yaxis = yTitle ,
+       legend = list(x = .6,y=.9)) %>% 
+  add_lines(x = c(m,m),y = c(0,900),type = "scatter",mode = 'lines'
+            ,name = paste("Median Salary in USD =",m) )|>
+  add_trace(x = c(mu,mu),y = c(0,900),type = "scatter",mode = 'lines'
+            ,name = paste("Mean Salary in USD =",mu))
+
+f = fivenum(x)
+IQR = f[4] -f[2]
+lOutLimit = f[2] - 1.5*IQR
+uOutLimit = f[4] + 1.5*IQR
+t = "Boxplot of Salary Distribution(US Companies)"
+t = paste(t,"<br>Lower Fence", lOutLimit,"Min:",f[1] ,"Q1:",f[2],"Median:",f[3],
+"Q3:",f[4],"Max:",f[5], "Upper Fence", uOutLimit)
+
+plot_ly(x = ~x, type = "box") %>%
+  layout( title = list(text= t,font = list(size =14,color ="darkblue",face= "bold")), 
+          xaxis = list (title = "Salary in USD",nticks =20))
+
+y <- dsSal$salary_in_usd > 319900
+cat (" The number of outliers exceeding the Upper Fence(Upper Outer Limit) of:",uOutLimit,"USD are:" , length(y[y==TRUE]),"\n","The Standard Deviation of the Salary Distribution is:", sd(dsSal$salary_in_usd),"USD","\n","The Mean is",
+     mean(dsSal$salary_in_usd),"USD","\n","The Five Number Summary in USD is:",t) 
+```
+
+## Findings and Inference
+
+1.  The Salary follows a normal distribution and is skewed to the right,
+    indicating outliers to the right of the distribution.
+
+2.  There are 328 people whose salaries are higher than the upper outlier limit
+    of \$319,900
+
+3.  The middle 50% of the salaries range from \$110,900 to \$194,500
+
+4.  The five number summary is:
+
+    ```         
+    Lower Fence -14500 Min: 20000 Q1: 110900 Median: 148500 Q3: 194500 Max: 750000 Upper Fence 319900
+    ```
+
+5.  The standard deviation is: \$66289.21 and mean is: \$157799.72
+
+# Central Limit Theorem
+
+The Applicability of Central Theorem is shown by using the salary attribute of
+the data set. Shown below are the histograms of sample means of 1000 random
+samples of sample size 10, 20 , 30, and 50 respectively.
+
+```{r echo=TRUE}
+# Central Limit Theorem
+# draw 1000 samples of size 10 , 20 , 30 , 50 from dsSal$salary_in_usd
+
+#set seed 
+set.seed(6603)
+# Set number of samples
+samples <- 1000
+#sample size = 10
+size <- 10
+xbar <- numeric(samples)
+for (i in 1: samples) {
+    xbar[i] <- mean(sample(dsSal$salary_in_usd, size, replace = FALSE))
+}
+y1 <- xbar
+s1 <- size
+# Plotting histogram for Earnings Data of sample size 10
+fig1 <- plot_ly( x = ~y1,   type = "histogram", name = "Sample Size: 10")
+#sample size = 20
+size <- 20
+xbar <- numeric(samples)
+for (i in 1: samples) {
+    xbar[i] <- mean(sample(dsSal$salary_in_usd, size, replace = FALSE))
+}
+y2  <- xbar
+s2 <- size
+# cat("Sample Size =", size, "Mean =", mean(xbar)," SD =", sd(xbar), 
+#     "Theoretical SD =", sd/sqrt(size), "\n")
+fig2 <- plot_ly( x = ~y2, type = "histogram",name = "Sample Size: 20")
+#sample size = 30
+size <- 30
+xbar <- numeric(samples)
+for (i in 1: samples) {
+    xbar[i] <- mean(sample(dsSal$salary_in_usd, size, replace = FALSE))
+}
+y3 <-  xbar
+s3 <- size
+
+# Plotting histogram for Earnings Data of sample size 30
+fig3 <- plot_ly( x = ~y3,type = "histogram",name = "Sample Size: 30")
+
+#sample size = 50
+size <- 50
+xbar <- numeric(samples)
+for (i in 1: samples) {
+    xbar[i] <- mean(sample(dsSal$salary_in_usd, size, replace = FALSE))
+}
+y4 <- xbar
+s4 <- size
+# cat("Sample Size =", size, "Mean =", mean(xbar)," SD =", sd(xbar), 
+#     "Theoretical SD =", sd/sqrt(size), "\n")
+#Plotting histogram for Earnings Data of sample size 50
+fig4 <- plot_ly( x = ~y4, type = "histogram",  name = "Sample Size: 50"  ) 
+fig4 <- subplot(fig1,fig2,fig3,fig4,nrows = 4,shareX = T) 
+fig4 <- fig4 %>%  layout(title = "Histogram of Sample Means of Salary",
+         xaxis = list(title = "Sample Means of Salary(USD)"))
+fig4
+```
+
+```{r echo = TRUE}
+#printing out the means and sigmas
+sd = sd(dsSal$salary_in_usd)
+mu = mean(dsSal$salary_in_usd)
+cat(" Population Mean =", mu,   "Population SD =", sd, "\n",
+    "Sample Size =", s1, "Mean =", mean(y1)," SD =", sd(y1), 
+    "Theoretical SD =", sd/sqrt(10), "\n",
+    "Sample Size =", s2, "Mean =", mean(y2)," SD =", sd(y2), 
+    "Theoretical SD =", sd/sqrt(20), "\n",
+     "Sample Size =", s3, "Mean =", mean(y3)," SD =", sd(y3), 
+    "Theoretical SD =", sd/sqrt(30), "\n",
+    "Sample Size =", s4, "Mean =", mean(y4)," SD =", sd(y4), 
+    "Theoretical SD =", sd/sqrt(50), "\n")
+```
+
+## Findings and Inference
+
+1.  From the results shown above we can see that the sample means are close to
+    the population mean of \$157799.7.The sample mean of \$157615.1 for sample
+    size = 50 is closest to the population mean of \$157799.7. The sample means
+    for sample size = 10, 20, and 30 are within \$1000 of the population mean.
+2.  As the sample size increases from 10 to 50 we can see that the standard
+    deviation decreases.
+3.  The values of the actual standard deviations for all the sample sizes are
+    close equal to the theoretical standard deviation as shown above.
+
+# Sampling Methods
+
+The applicability of the various sampling methods was analyzed by comparing the
+salary distribution of the population versus the salary distribution the
+sampling methods. The following sampling methods were used for sample size n =
+100.
+
+1.  Simple Random Sampling with Replacement
+2.  Systematic Sampling (Unequal Probabilities)\
+    The sampling was done after finding the proportion of salaries in the
+    population and picking the samples in the same proportion.
+3.  Systematic Sampling (Equal Probabilities)\
+    Here we divided the data into 100 groups and picked the sample data from the
+    same position r (r is determined randomly) from each group. Since we used
+    the ceiling function to split the data into groups, the sample value taken
+    from the last group was = NA (there was no data in the r th position in this
+    group). This value was removed from the sample. Hence the sample size
+    reduced to 99.
+4.  Stratified Sampling\
+    The data was divided into strata based on the company size (small, medium
+    and large). Due to rounding error while getting the proportion, there the
+    was no sample picked for company size = small. Hence a sample was added for
+    company size = small, and the number of samples increased to 101.
+
+```{r echo = TRUE}
+library(sampling)
+#plotting histogram of salary data for US
+# Plotting histogram for Salary Data
+x <- dsSal$salary_in_usd
+m = median(x)
+mu = round(mean(x),2)
+sd = sd(dsSal$salary_in_usd)
+
+p = plot_ly( x = ~x,type = "histogram",name = "Population Distribution",
+             histnorm = "probability",nbinsx = 25)  %>%
+   add_trace(x = c(mu,mu),y = c(0,0.4),type = "scatter",mode = 'lines'
+            ,name = paste("Mean Salary in USD =",mu))
+
+#set sample size = 50
+n = 100
+#set 
+N = nrow(dsSal)
+#get simple random sampling with replacement for sample  size = 100 
+# set seed
+set.seed(6000)
+s <- srswr(n,N )
+#s[s != 0]
+
+#getting the selected rows with reps
+rows <- (1:N)[s!=0]
+rows <- rep(rows, s[s != 0])
+sample.1 <- dsSal[rows, ]
+x1<- sample.1$salary_in_usd
+m = median(x1)
+mu = round(mean(x1),2)
+sd = sd(x1)
+
+heading = "Simple Random Sampling(With Replacement)"
+p1=plot_ly(x = ~x1,type = "histogram",name = "Simple Random Sampling With Replacement",
+         histnorm = "probability",nbinsx = 15)  %>%
+  add_trace(x = c(mu,mu),y = c(0,0.4),type = "scatter",mode = 'lines'
+            ,name = paste("Mean Salary in USD =",mu))
+
+```
+
+```{r echo=TRUE}
+## Systematic Sampling(Unequal Probabilities)
+# UPsystematic
+
+set.seed(6000)
+#sample size = 50
+n=100
+
+#Calculate the inclusion probabilities using the Earnings variable
+pik <- inclusionprobabilities(dsSal$salary_in_usd, n)
+s <- UPsystematic(pik)
+
+#getting sample from systematic sampling with unequal probabilities
+sample.2 <- dsSal[s != 0,]
+x2<- sample.2$salary_in_usd
+m = median(x2)
+mu = round(mean(x2),2)
+sd = sd(x2)
+
+heading = "Systematic Sampling"
+#pTitle= list(text=heading, y = 0.98, x = 0.5, xanchor = 'center', yanchor =  'top')
+pTitle= list(text=heading)
+xTitle = list(title = "Salary in USD")
+yTitle = list(title = "Probability")
+p2=plot_ly(x = ~x2,type = "histogram",name = "Systematic Sampling(Unequal Proabilities)",
+         histnorm = "probability",nbinsx = 18)  %>%
+layout(title = pTitle,
+       xaxis = xTitle, 
+       yaxis = yTitle,
+       legend = list(x = .6,y=.9)) %>% 
+  # add_trace(x = c(m,m),y = c(0,0.22),type = "scatter",mode = 'lines'
+  #           ,width =2,name = paste("Median Salary in USD =",m) )|>
+  add_trace(x = c(mu,mu),y = c(0,0.22),type = "scatter",mode = 'lines'
+            ,name = paste("Mean Salary in USD =",mu))
+
+
+```
+
+```{r echo=TRUE}
+## Systematic Sampling (Equal Probabilities)
+
+#### 3.5. Example – Systematic Sampling
+
+set.seed(6000)
+#
+
+N <- nrow(dsSal)
+n <- 100
+k <- ceiling(N / n)
+r <- sample(k, 1)
+
+# select every kth item
+
+s <- seq(r, by = k, length = n)
+
+sample.4 <- dsSal[s, ]
+x4 <- sample.4$salary_in_usd
+x4 <- x4[!is.na(x4)]
+m = median(x4)
+mu = round(mean(x4),2)
+sd = sd(x4)
+
+#pTitle= list(text=heading, y = 0.98, x = 0.5, xanchor = 'center', yanchor =  'top')
+pTitle= heading
+xTitle = list(title = "Salary in USD")
+yTitle = list(title = "Probability")
+p4=plot_ly(x = ~x4,type = "histogram",name = "Systematic Sampling(Equal Probabilities)",
+         histnorm = "probability",nbinsx = 18)  %>%
+       add_trace(x = c(mu,mu),y = c(0,0.22),type = "scatter",mode = 'lines'
+            ,name = paste("Mean Salary in USD =",mu))
+  
+
+```
+
+```{r echo = TRUE}
+#stratified sample using proportional sizes based on the company size variable
+
+
+set.seed(6000)
+#getting the proportion by company_size
+# Proportion
+
+freq <- table(dsSal$company_size)
+#getting the sample size of each department for n = 100
+sizes <- round(n * freq / sum(freq))
+sizes[3] = 1
+
+
+# getting the stratified sample data for size = n = 100
+st <-strata(dsSal, stratanames = c("company_size"),
+                       size = sizes, method = "srswor")
+sample.3 = getdata(dsSal,st)
+
+x3 = sample.3$salary_in_usd
+m = median(x3)
+mu = round(mean(x3),2)
+sd = sd(x3)
+
+heading = "Stratified Sampling on Company_Size"
+#pTitle= list(text=heading, y = 0.98, x = 0.5, xanchor = 'center', yanchor =  'top')
+pTitle= list(text=heading)
+xTitle = list(title = "Salary in USD")
+yTitle = list(title = "Probability")
+p3=plot_ly(x = ~x3,type = "histogram",name = "Stratified Sampling",
+         histnorm = "probability",nbinsx = 18)  %>%
+layout(title = pTitle,
+       xaxis = xTitle,
+       yaxis = yTitle,
+       legend = list(x = .6,y=.9)) %>% 
+  add_trace(x = c(mu,mu),y = c(0,0.22),type = "scatter",mode = 'lines'
+        ,name = paste("Mean Salary in USD =",mu))
+
+
+subplot(p,p1,p2,p4,p3,shareX = TRUE,nrows =5) %>% 
+  layout( title = "Population vs Sampling Distrubutions",
+          xaxis =list(title = " Salary in USD",
+                       nticks = 20 ),
+          yaxis = list(title = "Probability"))
+
+
+```
+
+## Findings and Inference
+
+1.  By looking visually at the histograms, as well as the actual values of the
+    calculated means (as shown in the legend), the mean for most sampling
+    methods are close to the population mean. The exception is Systematic
+    Sampling (Unequal Probabilities).
+2.  Since Systematic Sampling (Unequal Probabilities) gave more weight to the
+    higher salaries, the mean of \$179059.41 for this method is higher compared
+    to the population mean of \$157799.72.
+3.  The mean \$159979.29 of the Stratified sampling method is closest to the
+    population mean of \$157799.72. Overall this is the best sampling method for
+    estimating the population mean.
+4.  Simple Random Sampling and Systematic Sampling(Equal Probabilities) have
+    means of \$160799.72 and \$161811.01.
+
+# Job Counts by Company Size
+
+```{r echo = TRUE}
+h = "AI ML Data Science Joby by Company Size<br>(S: Small,M: Medium,L: Large)"
+fig = plot_ly(count(dsSal,company_size),type = "pie", labels= ~company_size,
+          values = ~n,textposition = 'inside', textinfo = 'label+percent',
+          width = 400, height = 400) %>% 
+        layout(title = list(text= h,font = list(size =14,color ="darkblue"
+                                                      ,x=0.3)))
+        
+fig
+
+```
+
+## Findings and Inference
+
+About 94.8 % of the jobs in the data sciences sector are in medium companies(50
+to 250 employees) and 4.2% in the large companies(\> 250 employees). The reason
+for this could be that more employees from medium size companies took this
+survey compared to the large and small size companies. Hence we may need further
+study on this.
+
+# Analysis of Top 10 Job Titles (By Frequency)
+
+## Top 10 Job Titles(By Frequency)
+
+```{r echo=TRUE}
+#Top 10 job titles by Count AI ML Data Science Jobs
+
+data= data.frame(sort(table(dsSal$job_title),decreasing = TRUE))
+
+top10JobTitles <-data[1:10,]  # 99 % jobs in top 25 countries
+
+pTitle = list(text="Top 10 Common Job Titles", y = 0.98,
+               x = 0.5, xanchor = 'center', yanchor =  'top')
+p5 <- plot_ly(top10JobTitles)%>% 
+  add_trace(y = ~Freq, 
+            x = ~Var1,
+            type ="bar",
+            text = ~Freq,
+            textposition = "inside",
+            marker = list(color = c("cyan",
+                                    "yellow",
+                                    "orange",
+                                    "blue",
+                                    "silver",
+                                    "green",
+                                    "pink"),
+                   opacity = rep(0.7, 7))) %>% 
+  layout(title = pTitle,
+         xaxis = list(title ="",zeroline = FALSE),
+         yaxis = list(title = "Count",
+                      zeroline = FALSE))
+p5
+```
+
+### Findings and Inference
+
+The top 4 job titles for AI ML Data Science Jobs in the data set are Data
+Scientist (4506) followed by Data Engineer(3963), Data Analyst(2715), Machine
+Learning Engineer(2140). These outnumber the other six job titles of Research
+Scientist(880), Applied Scientist(600),Data Architect(501), Research
+Engineer(451) and Business Intelligence Engineer(296).
+
+## Salary Distribution of Top 10 Job Titles
+
+What are the average salaries by top 10 job titles and experience level
+
+```{r echo = TRUE}
+
+bdata =  filter(dsSal, job_title %in% top10JobTitles$Var1) 
+ 
+h = "Average Salaries by Top 10 Job Titles and Experience"
+
+plot_ly(bdata,x= ~salary_in_usd, color=~job_title,type = "box") %>%
+  layout(title = list(text ="Salary Distribution of Top 10 Job Titles",
+         font = list(color = "darkblue")),
+         xaxis = list(title = "Salary in USD",nticks = 20))
+```
+
+### Findings and Inference
+
+Among the top 10 most common job titles in the sector:
+
+1.  The top 4 highest paid jobs are Research Scientist, Research Engineer,
+    Applied Scientist, Machine Learning Engineer. They have the highest inter
+    quartile range, highest median and the highest a upper fence of \$350,000 to
+    \$400,000. These job titles all have fewer than 10 outliers (right side)
+    except Machine Learning Engineer, which has more.
+2.  Though the frequency of Research Scientist, Research Engineer, Applied
+    Scientist are in the bottom ten (of the top 10 most common job titles), they
+    are highly paid jobs. This could be because they may require a higher skill
+    set with higher educational qualification, indicated by the words ‘Research’
+    and ‘Scientist’ in the job title.
+3.  Among the top four highest paid job titles, Machine Learning Engineer is the
+    only one which is in the top 4 most common job titles as well.
+4.  The next three highest paid jobs are Data Scientist, Data Engineer and Data
+    Architect Jobs with upper fence salary near \$300,000 to \$350,000. The Data
+    Scientist and Data Architect have a lot of outliers in the range of
+    \$350,000 to \$400,000. This indicates that these jobs are in high demand
+    and the person with the right skills, qualifications, and experience can get
+    a salary greater than the market rate.
+5.  The bottom 3 job titles in terms of salary are Data Analyst, Analytics
+    Engineer and Business Intelligence Engineer. All these have a upper fence of
+    \$200,000 to \$280,000.
+
+## Average Salary Trends of Top 10 Job Titles by Experience
+
+What are the average salaries by top 10 job titles and experience level
+
+```{r echo = TRUE}
+
+jdata =  filter(dsSal, job_title %in% top10JobTitles$Var1) |>
+ group_by(job_title,experience_level) |>
+  summarize(count = n(),avg = mean(salary_in_usd)) |>
+  arrange(desc(count))
+h = "Average Salaries by Top 10 Job Titles and Experience"
+h = paste(h,"<br>(EN: Entry,EX: Executive,MI: Mid Level,SE: Senior)")
+plot_ly(jdata,type = "bar", x = ~job_title,y=~avg, color=~experience_level
+        )  %>%
+  layout(title =h)
+  
+
+
+
+```
+
+### Findings and Inference
+
+1.  The Data Analyst job has the lowest average for across all years of
+    experience compared to the other jobs,
+2.  As expected people with Experience level = EX(Executive) have the highest
+    average salaries across all job titles, except Research Scientist. For
+    Research Scientist job title the people with Experience level = SE(Senior)
+    have a slightly higher average salary than with Experience level =
+    EX(Executive). The average salary for Execuitve level is highest for Machine
+    Learning Engineer followed by Data Scientist.
+3.  For entry level jobs Experience level = EN(entry), the highest average
+    salary is for the Research Scientist and Research Engineer jobs. The lowest
+    entry level salary is for Data Analyst, Data Architect and Business Level
+    Engineer jobs.
+4.  The same trend as that of Experience level = EN(entry) holds true for
+    experience levels MI: Mid level and SE: Senior.
+
+## Average Salary of Top 10 Job Titles by Year
+
+```{r echo = TRUE}
+
+dsSal$work_year = as.character(dsSal$work_year)
+kdata =  filter(dsSal, job_title %in% top10JobTitles$Var1) |>
+ group_by( job_title, work_year) |>
+  summarize(count = n(),avg = round(mean(salary_in_usd))) |>
+  arrange(desc(count))
+
+
+h = "Average Salary By Job Title and Year<br>(For Top 10 Common Job Titles)"
+
+plot_ly(kdata,type = "bar", x = ~job_title,y=~avg, color=~work_year,
+        text = ~avg,textposition = "top",textangle =0) %>%
+  layout(title = h,xaxis = list(title = ""),
+         yaxis = list(title = "Average Salary(USD)"))
+  
+
+
+```
+
+### Findings and Inference
+
+1.  Data Analyst, Data Engineer and Analytics Engineer job titles show the most
+    percent increase in average salaries across the years. Of these Data Analyst
+    job has had an increase almost every year in average salary. These roles are
+    among the lowest paid in the 10 top most common jobs,
+2.  For the higher paying jobs of average salaries have held more or less
+    steady.
+3.  For the Research scientist an abnormally high average salary in 2020
+    indicates the presence of an outlier.
+
+# Top 10 Job Titles with Highest Average Salary
+
+Analyze trends for the top 10 job titles with the highest average salary by
+experience level.
+
+```{r echo = TRUE}
+data10 =   group_by(dsSal,job_title, experience_level) |>
+  summarize(count = n(),avg = mean(salary_in_usd)) |>
+  arrange(desc(avg))
+data10 = data10[1:10,]
+xdata = filter(dsSal,job_title %in% data10$job_title)
+
+plot_ly(xdata,x= ~salary_in_usd, color=~job_title,type = "box") %>%
+  layout(title = list(text ="Salary Distribution: Top 10 Job Titles by Highest Average Salary",
+         font = list(color = "darkblue",width = 500,hright = 500)),
+         xaxis = list(title = "Salary in USD",nticks = 20))
+h = "Count of Top 10 Job Titles by Experience Level with Highest Average Salary "
+h = paste(h,"<br>(EN: Entry,EX: Executive,MI: Mid Level,SE: Senior Level)")
+plot_ly(data10,y = ~count, 
+            x = ~job_title,
+            type ="bar",
+            text=~count, 
+            textposition = "inside",
+            color = ~experience_level) %>% 
+  layout(title = h,yaxis = list(title = "Count"))
+        
+
+
+
+```
+
+## Findings and Inference
+
+1.  By looking at the distribution of salaries for the 10 job titles with the
+    highest average salary we can see that Prompt Engineer made it to this list
+    as they have one or two outliers with a very high salary. These jobs would
+    not be in the list if it were not for these outliers.
+
+2.  Jobs of AWS Data Architect, Finance Data Analyst, Cloud Data Architect and
+    Data Science Tech lead only have 1 record in the data set and hence are
+    outliers.
+
+3.  The top paid jobs of Machine Learning Developer, Deep Learning Engineer,
+    Applied Data Scientist, Head of Machine Learning all are held by people
+    whose experience level is Senior or Executive level.
+
+4.  The counts for all of the 10 job titles with highest average salary is less
+    than 10 records.
+
+# Job Trends By Experience Level
+
+What is the proportion of jobs in the market by experience level.
+
+```{r echo = TRUE}
+h = "Job Count by Experience Level"
+h = paste(h,"<br>(EN: Entry,EX: Executive,MI: Mid Level,SE: Senior)")
+fig = plot_ly(count(dsSal,experience_level),type = "pie", 
+              labels= ~experience_level,values = ~n,
+              textposition = 'inside', textinfo = 'label+percent',
+              width = 400, height = 400) %>% 
+        layout(title = list(text= h,font = list(size =14,color ="darkblue"
+                                                      ,x=0.3)))
+        
+fig
+```
+
+## Findings and Inference
+
+Though one would expect entry level jobs to be the most frequent in a job
+market, it looks like Senior Level Jobs are the most frequent at 64.5 % in the
+AI ML Data Science sector. This is followed by the mid level experience jobs at
+25.2%, and the entry level jobs at 7.6%. The executive level jobs are very few
+at 2.8%.
+
+Since the number of entry level jobs has the lowest proportion, it may be
+difficult for a person to get an entry level job in this sector. Given the
+higher proportion of senior and mid level jobs, higher educational
+qualification, more work experience or higher skills may be required to get a
+job in this sector.
+
+# Salary Trends By Experience
+
+Are the salaries higher for people with more years of work experience.
+
+```{r echo = TRUE}
+h = "Salary Distribution<br>(EN: Entry,EX: Executive,MI: Mid Level,SE: Senior)"
+plot_ly(dsSal,x = ~salary_in_usd, color=~experience_level,type = "box") %>%
+  layout(title = h,
+         xaxis = list(title = "Salary in USD",nticks = 20))
+
+
+```
+
+## Findings and Inference
+
+We can see that the salaries in this industry are definitely higher for people
+with more job experience. People at the Executive level are paid the highest
+followed by people at Senior level. As expected entry level jobs are paid the
+lowest.
+
+All 4 experience levels have outliers, with the senior level having the most,
+followed by the mid level, executive level and entry level.
+
+# Average Salary Trends by Year
+
+Trends in Average Salary from 2020 to 2024. Has the average salary in this
+sector increased during this period, decreased or remained the same. This is
+compared with the count of survey respondents by year to analyze the data
+better.
+
+```{r echo = TRUE}
+
+dsSal$work_year = as.numeric(dsSal$work_year )
+top5JobTitles = top10JobTitles[1:5,]
+data5 =  filter(dsSal,job_title %in% top5JobTitles$Var1) |>
+  group_by(work_year) |>
+  summarize(count = n(),avg = round(mean(salary_in_usd)))|>
+  arrange(work_year)
+
+
+h = "Average Salary and Count of Survey Respondents by Work Year"
+
+subplot(
+
+  plot_ly(data5,type = "scatter", mode = "lines",x = ~work_year,y=~avg
+        ,name = "Average Salary")  %>%
+ layout(title =h,xaxis = list(title = "Work Year"),
+        yaxis = list(title = "Average Salary"),
+        xaxis =list(range = list(2019, 2025))),
+  plot_ly(data5,type = "scatter", mode = "lines",x = ~work_year,y=~count,
+            name = "Count")  %>%
+     layout(title =h,xaxis = list(title = "Work Year"),
+        yaxis = list(title = "Count of Respondents"),
+        xaxis =list(range = list(2019, 2025))),
+ nrows = 2 ,titleY = TRUE,shareX = TRUE,heights = c(0.55,0.45)) |> 
+  layout(xaxis = list(title = "Work Year",range = list(2019, 2024)))
+```
+
+## Findings and Inference
+
+We see that the average salary in the AI ML Data Science job sector had a linear
+increase from \$123372(in 2021) to \$159822(in 2023), and plateaued \$159522(in
+2024). There is a sudden drop in average salary from \$163284(in 2020) to
+\$123372(in 2021). This seems to be an anomaly and could be because the number
+of survey respondents was low at 23 in 2020. There is a yearly increase in
+number of survey respondents in the US from 2020 to 2024. This could be because
+the number of data science jobs has seen an increase in the past few years due
+to the boom in AI and ML.
+
+# Trends in Remote Work
+
+Trends in Remote Work from 2020 to 2024. How has the remote work scene shifted
+in the time period.
+
+```{r echo = TRUE}
+
+dsSal$work_year = as.character(dsSal$work_year)
+dsSal$remote_ratio = as.character(dsSal$remote_ratio)
+mdata = group_by(dsSal, work_year,remote_ratio) |>
+  summarize(count = n()) |>
+  arrange(desc(work_year))
+
+
+h = "Remote Work Ratio by Work Year"
+h = paste(h,"<br>(0: No Remote Work,100: Fully Remote,50: Hybrid)")
+plot_ly(mdata,type = "bar", x = ~work_year,y=~count, color=~remote_ratio
+        )  %>%
+ layout(title =h,xaxis = list(title = "Work Year"),
+        yaxis = list(title = "Count"))
+
+
+```
+
+## Findings and Inference
+
+1.  We can ignore the data for 2020 and 2021 as very few people have filled out
+    the survey in those years.
+2.  We can see that the number remote jobs have decreased compared to 'no remote
+    work' jobs from 2022 to 2024.
+3.  In 2024 the 'no remote work' jobs are almost 4 times that of remote jobs,
+    indicating an increased trend of employers wanting the employees to work in
+    person, rather than from home.
+4.  The number of people working hybrid jobs is low compared to remote and
+    in-person jobs. This could be because people working hybrid (more than 50%
+    in person work) may have identified themselves as 'no remote work' in the
+    survey.
+
+# Conclusion
+
+Though the data set provides good insight into the various analyses and trends
+of the AI ML Data Sciences job market in the US, it is still based on surveys
+from a website and may not be representative of the whole population. Hence this
+study may be used as a start and further studies conducted to come to an
+unbiased conclusion. This survey could also benefit from having a question on
+the educational qualification and the major of the employees to provide more
+insight. In spite of the above limitations the data set does a give a good idea
+of the AI ML Data Sciences sector for the US job market and is a good starting
+point for future research. This study is also relevant given the boom in the AI
+ML Data Science job sector over the past few years.
