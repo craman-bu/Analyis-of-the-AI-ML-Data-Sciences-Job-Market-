@@ -1,6 +1,6 @@
 ---
 title: "Analysis of AI ML Data Sciences Job Market And Salary Trends(USA)"
-author: "Chinmayee Raman"
+author: "craman"
 date: "`r format(Sys.time(), '%m/%d/%Y')`"
 output:
   html_document:
